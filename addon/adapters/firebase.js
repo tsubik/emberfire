@@ -774,11 +774,21 @@ export default DS.Adapter.extend(Waitable, {
     var id = payload.id;
     var cache = this._getRecordCache(typeClass, id);
     const serializer = store.serializerFor(typeClass.modelName);
-    // Only cache relationships for now
+    // Only cache relationships for now and embedded records
     typeClass.eachRelationship((key, relationship) => {
       if (relationship.kind === 'hasMany') {
         var ids = payload[serializer.keyForRelationship(key)];
-        cache[key] = !Ember.isNone(ids) ? Ember.A(Object.keys(ids)) : Ember.A();
+        var isEmbedded = this.isRelationshipEmbedded(store, typeClass.modelName, relationship);
+        var relationshipTypeClass = store.modelFor(relationship.type);
+        // cache embedded records as well
+        if (isEmbedded && !Ember.isNone(ids)) {
+          forEach(ids, (obj, id) => {
+            obj.id = id;
+            this._updateRecordCacheForType(relationshipTypeClass, obj, store);
+          });
+        } else {
+          cache[key] = !Ember.isNone(ids) ? Ember.A(Object.keys(ids)) : Ember.A();
+        }
       }
     });
   },
